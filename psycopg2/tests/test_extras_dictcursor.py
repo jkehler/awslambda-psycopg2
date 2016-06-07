@@ -18,8 +18,8 @@ import time
 from datetime import timedelta
 import psycopg2
 import psycopg2.extras
-from testutils import unittest, ConnectingTestCase, skip_before_postgres
-from testutils import skip_if_no_namedtuple
+from .testutils import unittest, ConnectingTestCase, skip_before_postgres
+from .testutils import skip_if_no_namedtuple
 
 
 class ExtrasDictCursorTests(ConnectingTestCase):
@@ -36,12 +36,12 @@ class ExtrasDictCursorTests(ConnectingTestCase):
         self.conn.close()
         self.conn = self.connect(connection_factory=psycopg2.extras.DictConnection)
         cur = self.conn.cursor()
-        self.assert_(isinstance(cur, psycopg2.extras.DictCursor))
+        self.assertTrue(isinstance(cur, psycopg2.extras.DictCursor))
         self.assertEqual(cur.name, None)
         # overridable
         cur = self.conn.cursor('foo', cursor_factory=psycopg2.extras.NamedTupleCursor)
         self.assertEqual(cur.name, 'foo')
-        self.assert_(isinstance(cur, psycopg2.extras.NamedTupleCursor))
+        self.assertTrue(isinstance(cur, psycopg2.extras.NamedTupleCursor))
 
     def testDictCursorWithPlainCursorFetchOne(self):
         self._testWithPlainCursor(lambda curs: curs.fetchone())
@@ -64,8 +64,8 @@ class ExtrasDictCursorTests(ConnectingTestCase):
     def testUpdateRow(self):
         row = self._testWithPlainCursor(lambda curs: curs.fetchone())
         row['foo'] = 'qux'
-        self.failUnless(row['foo'] == 'qux')
-        self.failUnless(row[0] == 'qux')
+        self.assertTrue(row['foo'] == 'qux')
+        self.assertTrue(row[0] == 'qux')
 
     @skip_before_postgres(8, 0)
     def testDictCursorWithPlainCursorIterRowNumber(self):
@@ -76,8 +76,8 @@ class ExtrasDictCursorTests(ConnectingTestCase):
         curs = self.conn.cursor(cursor_factory=psycopg2.extras.DictCursor)
         curs.execute("SELECT * FROM ExtrasDictCursorTests")
         row = getter(curs)
-        self.failUnless(row['foo'] == 'bar')
-        self.failUnless(row[0] == 'bar')
+        self.assertTrue(row['foo'] == 'bar')
+        self.assertTrue(row[0] == 'bar')
         return row
 
 
@@ -108,7 +108,7 @@ class ExtrasDictCursorTests(ConnectingTestCase):
         curs = self.conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor)
         curs.execute("SELECT * FROM ExtrasDictCursorTests")
         row = getter(curs)
-        self.failUnless(row['foo'] == 'bar')
+        self.assertTrue(row['foo'] == 'bar')
 
 
     def testDictCursorWithNamedCursorFetchOne(self):
@@ -143,8 +143,8 @@ class ExtrasDictCursorTests(ConnectingTestCase):
         curs = self.conn.cursor('aname', cursor_factory=psycopg2.extras.DictCursor)
         curs.execute("SELECT * FROM ExtrasDictCursorTests")
         row = getter(curs)
-        self.failUnless(row['foo'] == 'bar')
-        self.failUnless(row[0] == 'bar')
+        self.assertTrue(row['foo'] == 'bar')
+        self.assertTrue(row[0] == 'bar')
 
 
     def testDictCursorRealWithNamedCursorFetchOne(self):
@@ -179,7 +179,7 @@ class ExtrasDictCursorTests(ConnectingTestCase):
         curs = self.conn.cursor('aname', cursor_factory=psycopg2.extras.RealDictCursor)
         curs.execute("SELECT * FROM ExtrasDictCursorTests")
         row = getter(curs)
-        self.failUnless(row['foo'] == 'bar')
+        self.assertTrue(row['foo'] == 'bar')
 
 
     def _testNamedCursorNotGreedy(self, curs):
@@ -191,8 +191,8 @@ class ExtrasDictCursorTests(ConnectingTestCase):
             recs.append(t)
 
         # check that the dataset was not fetched in a single gulp
-        self.assert_(recs[1]['ts'] - recs[0]['ts'] < timedelta(seconds=0.005))
-        self.assert_(recs[2]['ts'] - recs[1]['ts'] > timedelta(seconds=0.0099))
+        self.assertTrue(recs[1]['ts'] - recs[0]['ts'] < timedelta(seconds=0.005))
+        self.assertTrue(recs[2]['ts'] - recs[1]['ts'] > timedelta(seconds=0.0099))
 
     def _testIterRowNumber(self, curs):
         # Only checking for dataset < itersize:
@@ -251,7 +251,7 @@ class NamedTupleCursorTest(ConnectingTestCase):
     def test_cursor_args(self):
         cur = self.conn.cursor('foo', cursor_factory=psycopg2.extras.DictCursor)
         self.assertEqual(cur.name, 'foo')
-        self.assert_(isinstance(cur, psycopg2.extras.DictCursor))
+        self.assertTrue(isinstance(cur, psycopg2.extras.DictCursor))
 
     @skip_if_no_namedtuple
     def test_fetchone(self):
@@ -325,22 +325,22 @@ class NamedTupleCursorTest(ConnectingTestCase):
         i = iter(curs)
         self.assertEqual(curs.rownumber, 0)
 
-        t = i.next()
+        t = next(i)
         self.assertEqual(t.i, 1)
         self.assertEqual(t.s, 'foo')
         self.assertEqual(curs.rownumber, 1)
         self.assertEqual(curs.rowcount, 3)
 
-        t = i.next()
+        t = next(i)
         self.assertEqual(t.i, 2)
         self.assertEqual(t.s, 'bar')
         self.assertEqual(curs.rownumber, 2)
         self.assertEqual(curs.rowcount, 3)
 
-        t = i.next()
+        t = next(i)
         self.assertEqual(t.i, 3)
         self.assertEqual(t.s, 'baz')
-        self.assertRaises(StopIteration, i.next)
+        self.assertRaises(StopIteration, i.__next__)
         self.assertEqual(curs.rownumber, 3)
         self.assertEqual(curs.rowcount, 3)
 
@@ -426,7 +426,7 @@ class NamedTupleCursorTest(ConnectingTestCase):
         recs.extend(curs.fetchmany(5))
         recs.append(curs.fetchone())
         recs.extend(curs.fetchall())
-        self.assertEqual(range(10), [t.i for t in recs])
+        self.assertEqual(list(range(10)), [t.i for t in recs])
 
     @skip_if_no_namedtuple
     def test_named_fetchone(self):
@@ -461,8 +461,8 @@ class NamedTupleCursorTest(ConnectingTestCase):
             recs.append(t)
 
         # check that the dataset was not fetched in a single gulp
-        self.assert_(recs[1].ts - recs[0].ts < timedelta(seconds=0.005))
-        self.assert_(recs[2].ts - recs[1].ts > timedelta(seconds=0.0099))
+        self.assertTrue(recs[1].ts - recs[0].ts < timedelta(seconds=0.005))
+        self.assertTrue(recs[2].ts - recs[1].ts > timedelta(seconds=0.0099))
 
     @skip_if_no_namedtuple
     @skip_before_postgres(8, 0)

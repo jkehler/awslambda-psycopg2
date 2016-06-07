@@ -22,12 +22,12 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
 # License for more details.
 
-from testutils import unittest
+from .testutils import unittest
 
 import psycopg2
 from psycopg2 import extensions
-from testutils import ConnectingTestCase, script_to_py3
-from testconfig import dsn
+from .testutils import ConnectingTestCase, script_to_py3
+from .testconfig import dsn
 
 import sys
 import time
@@ -81,7 +81,7 @@ conn.close()
         t0 = time.time()
         ready = select.select([self.conn], [], [], 5)
         t1 = time.time()
-        self.assert_(0.99 < t1 - t0 < 4, t1 - t0)
+        self.assertTrue(0.99 < t1 - t0 < 4, t1 - t0)
 
         pid = int(proc.communicate()[0])
         self.assertEqual(0, len(self.conn.notifies))
@@ -126,7 +126,7 @@ conn.close()
         time.sleep(0.5)
         self.conn.poll()
         notify = self.conn.notifies[0]
-        self.assert_(isinstance(notify, psycopg2.extensions.Notify))
+        self.assertTrue(isinstance(notify, psycopg2.extensions.Notify))
 
     def test_notify_attributes(self):
         self.autocommit(self.conn)

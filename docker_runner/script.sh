@@ -9,6 +9,6 @@ make install
 cd ../psycopg2-2.6.1
 sed -i.bak 's/\#static_libpq=1/static_libpq=1/' setup.cfg
 sed -i.bak 's/\#pg_config=/pg_config=..\/postgresql-9.4.3\/bin\/pg_config/' setup.cfg
-python setup.py build
+python3.4 setup.py build
 cp -R /psycopg2-2.6.1/build/lib.linux-x86_64-3.4/psycopg2/ /output
 

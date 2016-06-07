@@ -132,7 +132,7 @@ class SQL_IN(object):
                 if hasattr(obj, 'prepare'):
                     obj.prepare(self._conn)
         qobjs = [o.getquoted() for o in pobjs]
-        return b('(') + b(', ').join(qobjs) + b(')')
+        return b'(' + b', '.join(qobjs) + b')'
 
     def __str__(self):
         return str(self.getquoted())
@@ -147,7 +147,7 @@ class NoneAdapter(object):
     def __init__(self, obj):
         pass
 
-    def getquoted(self, _null=b("NULL")):
+    def getquoted(self, _null=b"NULL"):
         return _null
 
 
@@ -172,7 +172,7 @@ del Range
 # When the encoding is set its name is cleaned up from - and _ and turned
 # uppercase, so an encoding not respecting these rules wouldn't be found in the
 # encodings keys and would raise an exception with the unicode typecaster
-for k, v in encodings.items():
+for k, v in list(encodings.items()):
     k = k.replace('_', '').replace('-', '').upper()
     encodings[k] = v
 

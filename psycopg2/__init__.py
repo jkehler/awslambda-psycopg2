@@ -147,7 +147,7 @@ def connect(dsn=None,
     if port is not None:
         items.append(('port', port))
 
-    items.extend([(k, v) for (k, v) in kwargs.iteritems() if v is not None])
+    items.extend([(k, v) for (k, v) in kwargs.items() if v is not None])
 
     if dsn is not None and items:
         raise TypeError(

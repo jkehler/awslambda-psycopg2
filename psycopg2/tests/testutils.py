@@ -28,7 +28,7 @@ import os
 import platform
 import sys
 from functools import wraps
-from testconfig import dsn
+from .testconfig import dsn
 
 try:
     import unittest2
@@ -69,12 +69,12 @@ else:
 # maintainers
 # http://bugs.python.org/issue9424
 if not hasattr(unittest.TestCase, 'assert_') \
-or unittest.TestCase.assert_ is not unittest.TestCase.assertTrue:
+or unittest.TestCase.assertTrue is not unittest.TestCase.assertTrue:
     # mavaff...
-    unittest.TestCase.assert_ = unittest.TestCase.assertTrue
-    unittest.TestCase.failUnless = unittest.TestCase.assertTrue
-    unittest.TestCase.assertEquals = unittest.TestCase.assertEqual
-    unittest.TestCase.failUnlessEqual = unittest.TestCase.assertEqual
+    unittest.TestCase.assertTrue = unittest.TestCase.assertTrue
+    unittest.TestCase.assertTrue = unittest.TestCase.assertTrue
+    unittest.TestCase.assertEqual = unittest.TestCase.assertEqual
+    unittest.TestCase.assertEqual = unittest.TestCase.assertEqual
 
 
 class ConnectingTestCase(unittest.TestCase):
@@ -98,7 +98,7 @@ class ConnectingTestCase(unittest.TestCase):
     def connect(self, **kwargs):
         try:
             self._conns
-        except AttributeError, e:
+        except AttributeError as e:
             raise AttributeError(
                 "%s (did you remember calling ConnectingTestCase.setUp()?)"
                 % e)
@@ -271,7 +271,7 @@ def skip_if_no_superuser(f):
         from psycopg2 import ProgrammingError
         try:
             return f(self)
-        except ProgrammingError, e:
+        except ProgrammingError as e:
             import psycopg2.errorcodes
             if e.pgcode == psycopg2.errorcodes.INSUFFICIENT_PRIVILEGE:
                 self.skipTest("skipped because not superuser")
@@ -284,7 +284,7 @@ def skip_if_green(reason):
     def skip_if_green_(f):
         @wraps(f)
         def skip_if_green__(self):
-            from testconfig import green
+            from .testconfig import green
             if green:
                 return self.skipTest(reason)
             else:
