@@ -25,7 +25,7 @@
 import math
 import psycopg2
 from psycopg2.tz import FixedOffsetTimezone, ZERO
-from testutils import unittest, ConnectingTestCase, skip_before_postgres
+from .testutils import unittest, ConnectingTestCase, skip_before_postgres
 
 class CommonDatetimeTestsMixin:
 
@@ -35,7 +35,7 @@ class CommonDatetimeTestsMixin:
 
     def test_parse_date(self):
         value = self.DATE('2007-01-01', self.curs)
-        self.assert_(value is not None)
+        self.assertTrue(value is not None)
         self.assertEqual(value.year, 2007)
         self.assertEqual(value.month, 1)
         self.assertEqual(value.day, 1)
@@ -50,7 +50,7 @@ class CommonDatetimeTestsMixin:
 
     def test_parse_time(self):
         value = self.TIME('13:30:29', self.curs)
-        self.assert_(value is not None)
+        self.assertTrue(value is not None)
         self.assertEqual(value.hour, 13)
         self.assertEqual(value.minute, 30)
         self.assertEqual(value.second, 29)
@@ -65,7 +65,7 @@ class CommonDatetimeTestsMixin:
 
     def test_parse_datetime(self):
         value = self.DATETIME('2007-01-01 13:30:29', self.curs)
-        self.assert_(value is not None)
+        self.assertTrue(value is not None)
         self.assertEqual(value.year, 2007)
         self.assertEqual(value.month, 1)
         self.assertEqual(value.day, 1)
@@ -363,7 +363,7 @@ class mxDateTimeTests(ConnectingTestCase, CommonDatetimeTestsMixin):
 
     def test_parse_bc_date(self):
         value = self.DATE('00042-01-01 BC', self.curs)
-        self.assert_(value is not None)
+        self.assertTrue(value is not None)
         # mx.DateTime numbers BC dates from 0 rather than 1.
         self.assertEqual(value.year, -41)
         self.assertEqual(value.month, 1)
@@ -371,7 +371,7 @@ class mxDateTimeTests(ConnectingTestCase, CommonDatetimeTestsMixin):
 
     def test_parse_bc_datetime(self):
         value = self.DATETIME('00042-01-01 13:30:29 BC', self.curs)
-        self.assert_(value is not None)
+        self.assertTrue(value is not None)
         # mx.DateTime numbers BC dates from 0 rather than 1.
         self.assertEqual(value.year, -41)
         self.assertEqual(value.month, 1)
@@ -422,7 +422,7 @@ class mxDateTimeTests(ConnectingTestCase, CommonDatetimeTestsMixin):
 
     def test_parse_interval(self):
         value = self.INTERVAL('42 days 05:50:05', self.curs)
-        self.assert_(value is not None)
+        self.assertTrue(value is not None)
         self.assertEqual(value.day, 42)
         self.assertEqual(value.hour, 5)
         self.assertEqual(value.minute, 50)
@@ -446,7 +446,7 @@ class mxDateTimeTests(ConnectingTestCase, CommonDatetimeTestsMixin):
                              [DateTime(-41, 1, 1, 13, 30, 29.123456)])
         # microsecs for BC timestamps look not available in PG < 8.4
         # but more likely it's determined at compile time.
-        self.assert_(value in (
+        self.assertTrue(value in (
             '0042-01-01 13:30:29.123456 BC',
             '0042-01-01 13:30:29 BC'), value)
 
@@ -544,8 +544,8 @@ class FixedOffsetTimezoneTests(unittest.TestCase):
 
     def test_init_with_no_args(self):
         tzinfo = FixedOffsetTimezone()
-        self.assert_(tzinfo._offset is ZERO)
-        self.assert_(tzinfo._name is None)
+        self.assertTrue(tzinfo._offset is ZERO)
+        self.assertTrue(tzinfo._name is None)
 
     def test_repr_with_positive_offset(self):
         tzinfo = FixedOffsetTimezone(5 * 60)
@@ -560,11 +560,11 @@ class FixedOffsetTimezoneTests(unittest.TestCase):
         self.assertEqual(repr(tzinfo), "psycopg2.tz.FixedOffsetTimezone(offset=0, name='FOO')")
 
     def test_instance_caching(self):
-        self.assert_(FixedOffsetTimezone(name="FOO") is FixedOffsetTimezone(name="FOO"))
-        self.assert_(FixedOffsetTimezone(7 * 60) is FixedOffsetTimezone(7 * 60))
-        self.assert_(FixedOffsetTimezone(-9 * 60, 'FOO') is FixedOffsetTimezone(-9 * 60, 'FOO'))
-        self.assert_(FixedOffsetTimezone(9 * 60) is not FixedOffsetTimezone(9 * 60, 'FOO'))
-        self.assert_(FixedOffsetTimezone(name='FOO') is not FixedOffsetTimezone(9 * 60, 'FOO'))
+        self.assertTrue(FixedOffsetTimezone(name="FOO") is FixedOffsetTimezone(name="FOO"))
+        self.assertTrue(FixedOffsetTimezone(7 * 60) is FixedOffsetTimezone(7 * 60))
+        self.assertTrue(FixedOffsetTimezone(-9 * 60, 'FOO') is FixedOffsetTimezone(-9 * 60, 'FOO'))
+        self.assertTrue(FixedOffsetTimezone(9 * 60) is not FixedOffsetTimezone(9 * 60, 'FOO'))
+        self.assertTrue(FixedOffsetTimezone(name='FOO') is not FixedOffsetTimezone(9 * 60, 'FOO'))
 
     def test_pickle(self):
         # ticket #135

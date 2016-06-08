@@ -23,16 +23,16 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
 # License for more details.
 
-from testutils import unittest, skip_before_postgres
+from .testutils import unittest, skip_before_postgres
 
 import psycopg2
 from psycopg2 import extensions
 
 import time
 import select
-import StringIO
+import io
 
-from testutils import ConnectingTestCase
+from .testutils import ConnectingTestCase
 
 class PollableStub(object):
     """A 'pollable' wrapper allowing analysis of the `poll()` calls."""
@@ -85,16 +85,16 @@ class AsyncTests(ConnectingTestCase):
         cur = self.conn.cursor()
         sync_cur = self.sync_conn.cursor()
 
-        self.assert_(self.conn.async)
-        self.assert_(not self.sync_conn.async)
+        self.assertTrue(self.conn.async)
+        self.assertTrue(not self.sync_conn.async)
 
         # the async connection should be in isolevel 0
-        self.assertEquals(self.conn.isolation_level, 0)
+        self.assertEqual(self.conn.isolation_level, 0)
 
         # check other properties to be found on the connection
-        self.assert_(self.conn.server_version)
-        self.assert_(self.conn.protocol_version in (2,3))
-        self.assert_(self.conn.encoding in psycopg2.extensions.encodings)
+        self.assertTrue(self.conn.server_version)
+        self.assertTrue(self.conn.protocol_version in (2,3))
+        self.assertTrue(self.conn.encoding in psycopg2.extensions.encodings)
 
     def test_async_named_cursor(self):
         self.assertRaises(psycopg2.ProgrammingError,
@@ -109,7 +109,7 @@ class AsyncTests(ConnectingTestCase):
         self.wait(cur)
 
         self.assertFalse(self.conn.isexecuting())
-        self.assertEquals(cur.fetchone()[0], "a")
+        self.assertEqual(cur.fetchone()[0], "a")
 
     @skip_before_postgres(8, 2)
     def test_async_callproc(self):
@@ -119,7 +119,7 @@ class AsyncTests(ConnectingTestCase):
 
         self.wait(cur)
         self.assertFalse(self.conn.isexecuting())
-        self.assertEquals(cur.fetchall()[0][0], '')
+        self.assertEqual(cur.fetchall()[0][0], '')
 
     def test_async_after_async(self):
         cur = self.conn.cursor()
@@ -138,7 +138,7 @@ class AsyncTests(ConnectingTestCase):
         cur.execute("select * from table1")
         self.wait(cur)
 
-        self.assertEquals(cur.fetchall()[0][0], 1)
+        self.assertEqual(cur.fetchall()[0][0], 1)
 
         cur.execute("delete from table1")
         self.wait(cur)
@@ -146,7 +146,7 @@ class AsyncTests(ConnectingTestCase):
         cur.execute("select * from table1")
         self.wait(cur)
 
-        self.assertEquals(cur.fetchone(), None)
+        self.assertEqual(cur.fetchone(), None)
 
     def test_fetch_after_async(self):
         cur = self.conn.cursor()
@@ -157,7 +157,7 @@ class AsyncTests(ConnectingTestCase):
                           cur.fetchall)
         # but after waiting it should work
         self.wait(cur)
-        self.assertEquals(cur.fetchall()[0][0], "a")
+        self.assertEqual(cur.fetchall()[0][0], "a")
 
     def test_rollback_while_async(self):
         cur = self.conn.cursor()
@@ -186,14 +186,14 @@ class AsyncTests(ConnectingTestCase):
 
         cur.execute("select * from table1")
         self.wait(cur)
-        self.assertEquals(cur.fetchall()[0][0], 1)
+        self.assertEqual(cur.fetchall()[0][0], 1)
 
         cur.execute("delete from table1")
         self.wait(cur)
 
         cur.execute("select * from table1")
         self.wait(cur)
-        self.assertEquals(cur.fetchone(), None)
+        self.assertEqual(cur.fetchone(), None)
 
     def test_set_parameters_while_async(self):
         cur = self.conn.cursor()
@@ -202,7 +202,7 @@ class AsyncTests(ConnectingTestCase):
         self.assertTrue(self.conn.isexecuting())
 
         # getting transaction status works
-        self.assertEquals(self.conn.get_transaction_status(),
+        self.assertEqual(self.conn.get_transaction_status(),
                           extensions.TRANSACTION_STATUS_ACTIVE)
         self.assertTrue(self.conn.isexecuting())
 
@@ -240,7 +240,7 @@ class AsyncTests(ConnectingTestCase):
 
         # but after it's done it should work
         self.wait(cur)
-        self.assertEquals(list(cur), [(1, ), (2, ), (3, )])
+        self.assertEqual(list(cur), [(1, ), (2, ), (3, )])
         self.assertFalse(self.conn.isexecuting())
 
     def test_copy_while_async(self):
@@ -250,7 +250,7 @@ class AsyncTests(ConnectingTestCase):
         # copy should fail
         self.assertRaises(psycopg2.ProgrammingError,
                           cur.copy_from,
-                          StringIO.StringIO("1\n3\n5\n\\.\n"), "table1")
+                          io.StringIO("1\n3\n5\n\\.\n"), "table1")
 
     def test_lobject_while_async(self):
         # large objects should be prohibited
@@ -280,7 +280,7 @@ class AsyncTests(ConnectingTestCase):
         # but after it's done it should work
         self.wait(cur)
         cur.scroll(1)
-        self.assertEquals(cur.fetchall(), [(2, ), (3, )])
+        self.assertEqual(cur.fetchall(), [(2, ), (3, )])
 
         cur = self.conn.cursor()
         cur.execute("select id from table1 order by id")
@@ -296,7 +296,7 @@ class AsyncTests(ConnectingTestCase):
         self.wait(cur)
         cur.scroll(2)
         cur.scroll(-1)
-        self.assertEquals(cur.fetchall(), [(2, ), (3, )])
+        self.assertEqual(cur.fetchall(), [(2, ), (3, )])
 
     def test_scroll(self):
         cur = self.sync_conn.cursor()
@@ -309,7 +309,7 @@ class AsyncTests(ConnectingTestCase):
         cur.execute("select id from table1 order by id")
         cur.scroll(2)
         cur.scroll(-1)
-        self.assertEquals(cur.fetchall(), [(2, ), (3, )])
+        self.assertEqual(cur.fetchall(), [(2, ), (3, )])
 
     def test_async_dont_read_all(self):
         cur = self.conn.cursor()
@@ -319,7 +319,7 @@ class AsyncTests(ConnectingTestCase):
         self.wait(cur)
 
         # it should be the result of the second query
-        self.assertEquals(cur.fetchone()[0], "b" * 10000)
+        self.assertEqual(cur.fetchone()[0], "b" * 10000)
 
     def test_async_subclass(self):
         class MyConn(psycopg2.extensions.connection):
@@ -327,8 +327,8 @@ class AsyncTests(ConnectingTestCase):
                 psycopg2.extensions.connection.__init__(self, dsn, async=async)
 
         conn = self.connect(connection_factory=MyConn, async=True)
-        self.assert_(isinstance(conn, MyConn))
-        self.assert_(conn.async)
+        self.assertTrue(isinstance(conn, MyConn))
+        self.assertTrue(conn.async)
         conn.close()
 
     def test_flush_on_write(self):
@@ -355,7 +355,7 @@ class AsyncTests(ConnectingTestCase):
         cur.execute("select 1")
         # polling with a sync query works
         cur.connection.poll()
-        self.assertEquals(cur.fetchone()[0], 1)
+        self.assertEqual(cur.fetchone()[0], 1)
 
     def test_notify(self):
         cur = self.conn.cursor()
@@ -366,7 +366,7 @@ class AsyncTests(ConnectingTestCase):
         cur.execute("notify test_notify")
         self.wait(cur)
 
-        self.assertEquals(self.sync_conn.notifies, [])
+        self.assertEqual(self.sync_conn.notifies, [])
 
         pid = self.conn.get_backend_pid()
         for _ in range(5):
@@ -374,8 +374,8 @@ class AsyncTests(ConnectingTestCase):
             if not self.sync_conn.notifies:
                 time.sleep(0.5)
                 continue
-            self.assertEquals(len(self.sync_conn.notifies), 1)
-            self.assertEquals(self.sync_conn.notifies.pop(),
+            self.assertEqual(len(self.sync_conn.notifies), 1)
+            self.assertEqual(self.sync_conn.notifies.pop(),
                               (pid, "test_notify"))
             return
         self.fail("No NOTIFY in 2.5 seconds")
@@ -390,7 +390,7 @@ class AsyncTests(ConnectingTestCase):
         # fetching from a cursor with no results is an error
         self.assertRaises(psycopg2.ProgrammingError, cur2.fetchone)
         # fetching from the correct cursor works
-        self.assertEquals(cur1.fetchone()[0], 1)
+        self.assertEqual(cur1.fetchone()[0], 1)
 
     def test_error(self):
         cur = self.conn.cursor()
@@ -411,7 +411,7 @@ class AsyncTests(ConnectingTestCase):
         self.wait(cur)
         cur.execute("select * from table1 order by id")
         self.wait(cur)
-        self.assertEquals(cur.fetchall(), [(1, ), (2, ), (3, )])
+        self.assertEqual(cur.fetchall(), [(1, ), (2, ), (3, )])
         cur.execute("delete from table1")
         self.wait(cur)
 
@@ -422,7 +422,7 @@ class AsyncTests(ConnectingTestCase):
         self.assertRaises(psycopg2.ProgrammingError, self.wait, cur)
         cur2.execute("select 1")
         self.wait(cur2)
-        self.assertEquals(cur2.fetchone()[0], 1)
+        self.assertEqual(cur2.fetchone()[0], 1)
 
     def test_notices(self):
         del self.conn.notices[:]
@@ -433,7 +433,7 @@ class AsyncTests(ConnectingTestCase):
         cur.execute("create temp table chatty (id serial primary key);")
         self.wait(cur)
         self.assertEqual("CREATE TABLE", cur.statusmessage)
-        self.assert_(self.conn.notices)
+        self.assertTrue(self.conn.notices)
 
     def test_async_cursor_gone(self):
         import gc
@@ -453,7 +453,7 @@ class AsyncTests(ConnectingTestCase):
         try:
             cnn = psycopg2.connect('dbname=thisdatabasedoesntexist', async=True)
             self.wait(cnn)
-        except psycopg2.Error, e:
+        except psycopg2.Error as e:
             self.assertNotEqual(str(e), "asynchronous connection failed",
                 "connection error reason lost")
         else:

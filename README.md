@@ -33,3 +33,19 @@ After the above steps have been completed you will then have a build directory
 and the custom compiled psycopg2 library will be contained within it. Copy this
 directory into your AWS Lambda package and you will now be able to access
 PostgreSQL from within AWS Lambda using the psycopg2 library!
+
+
+### Instructions on compiling this with docker
+1.Install docker
+
+2.Go to docker_runner directory
+
+3.Build docker image
+
+  - docker build -t psycopg .
+
+4.Run the docker instance
+
+  - docker run -i -t -v {local_output_dir}:/output psycopg
+
+
