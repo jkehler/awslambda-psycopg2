@@ -23,16 +23,16 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
 # License for more details.
 
-from testutils import unittest, skip_before_postgres
+from testutils import unittest, skip_before_postgres, slow
 
 import psycopg2
-from psycopg2 import extensions
+from psycopg2 import extensions as ext
 
 import time
-import select
 import StringIO
 
 from testutils import ConnectingTestCase
+
 
 class PollableStub(object):
     """A 'pollable' wrapper allowing analysis of the `poll()` calls."""
@@ -55,7 +55,7 @@ class AsyncTests(ConnectingTestCase):
         ConnectingTestCase.setUp(self)
 
         self.sync_conn = self.conn
-        self.conn = self.connect(async=True)
+        self.conn = self.connect(async_=True)
 
         self.wait(self.conn)
 
@@ -66,35 +66,22 @@ class AsyncTests(ConnectingTestCase):
             )''')
         self.wait(curs)
 
-    def wait(self, cur_or_conn):
-        pollable = cur_or_conn
-        if not hasattr(pollable, 'poll'):
-            pollable = cur_or_conn.connection
-        while True:
-            state = pollable.poll()
-            if state == psycopg2.extensions.POLL_OK:
-                break
-            elif state == psycopg2.extensions.POLL_READ:
-                select.select([pollable], [], [], 10)
-            elif state == psycopg2.extensions.POLL_WRITE:
-                select.select([], [pollable], [], 10)
-            else:
-                raise Exception("Unexpected result from poll: %r", state)
-
     def test_connection_setup(self):
         cur = self.conn.cursor()
         sync_cur = self.sync_conn.cursor()
+        del cur, sync_cur
 
-        self.assert_(self.conn.async)
-        self.assert_(not self.sync_conn.async)
+        self.assert_(self.conn.async_)
+        self.assert_(not self.sync_conn.async_)
 
-        # the async connection should be in isolevel 0
-        self.assertEquals(self.conn.isolation_level, 0)
+        # the async connection should be autocommit
+        self.assert_(self.conn.autocommit)
+        self.assertEquals(self.conn.isolation_level, ext.ISOLATION_LEVEL_DEFAULT)
 
         # check other properties to be found on the connection
         self.assert_(self.conn.server_version)
-        self.assert_(self.conn.protocol_version in (2,3))
-        self.assert_(self.conn.encoding in psycopg2.extensions.encodings)
+        self.assert_(self.conn.protocol_version in (2, 3))
+        self.assert_(self.conn.encoding in ext.encodings)
 
     def test_async_named_cursor(self):
         self.assertRaises(psycopg2.ProgrammingError,
@@ -111,6 +98,7 @@ class AsyncTests(ConnectingTestCase):
         self.assertFalse(self.conn.isexecuting())
         self.assertEquals(cur.fetchone()[0], "a")
 
+    @slow
     @skip_before_postgres(8, 2)
     def test_async_callproc(self):
         cur = self.conn.cursor()
@@ -121,9 +109,11 @@ class AsyncTests(ConnectingTestCase):
         self.assertFalse(self.conn.isexecuting())
         self.assertEquals(cur.fetchall()[0][0], '')
 
+    @slow
     def test_async_after_async(self):
         cur = self.conn.cursor()
         cur2 = self.conn.cursor()
+        del cur2
 
         cur.execute("insert into table1 values (1)")
 
@@ -203,7 +193,7 @@ class AsyncTests(ConnectingTestCase):
 
         # getting transaction status works
         self.assertEquals(self.conn.get_transaction_status(),
-                          extensions.TRANSACTION_STATUS_ACTIVE)
+                          ext.TRANSACTION_STATUS_ACTIVE)
         self.assertTrue(self.conn.isexecuting())
 
         # setting connection encoding should fail
@@ -322,15 +312,16 @@ class AsyncTests(ConnectingTestCase):
         self.assertEquals(cur.fetchone()[0], "b" * 10000)
 
     def test_async_subclass(self):
-        class MyConn(psycopg2.extensions.connection):
-            def __init__(self, dsn, async=0):
-                psycopg2.extensions.connection.__init__(self, dsn, async=async)
+        class MyConn(ext.connection):
+            def __init__(self, dsn, async_=0):
+                ext.connection.__init__(self, dsn, async_=async_)
 
-        conn = self.connect(connection_factory=MyConn, async=True)
+        conn = self.connect(connection_factory=MyConn, async_=True)
         self.assert_(isinstance(conn, MyConn))
-        self.assert_(conn.async)
+        self.assert_(conn.async_)
         conn.close()
 
+    @slow
     def test_flush_on_write(self):
         # a very large query requires a flush loop to be sent to the backend
         curs = self.conn.cursor()
@@ -340,7 +331,7 @@ class AsyncTests(ConnectingTestCase):
             curs.execute("select %s;", ('x' * size,))
             self.wait(stub)
             self.assertEqual(size, len(curs.fetchone()[0]))
-            if stub.polls.count(psycopg2.extensions.POLL_WRITE) > 1:
+            if stub.polls.count(ext.POLL_WRITE) > 1:
                 return
 
         # This is more a testing glitch than an error: it happens
@@ -438,20 +429,20 @@ class AsyncTests(ConnectingTestCase):
     def test_async_cursor_gone(self):
         import gc
         cur = self.conn.cursor()
-        cur.execute("select 42;");
+        cur.execute("select 42;")
         del cur
         gc.collect()
         self.assertRaises(psycopg2.InterfaceError, self.wait, self.conn)
 
         # The connection is still usable
         cur = self.conn.cursor()
-        cur.execute("select 42;");
+        cur.execute("select 42;")
         self.wait(self.conn)
         self.assertEqual(cur.fetchone(), (42,))
 
     def test_async_connection_error_message(self):
         try:
-            cnn = psycopg2.connect('dbname=thisdatabasedoesntexist', async=True)
+            cnn = psycopg2.connect('dbname=thisdatabasedoesntexist', async_=True)
             self.wait(cnn)
         except psycopg2.Error, e:
             self.assertNotEqual(str(e), "asynchronous connection failed",
@@ -465,4 +456,3 @@ def test_suite():
 
 if __name__ == "__main__":
     unittest.main()
-
