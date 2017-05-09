@@ -23,6 +23,7 @@
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
 # License for more details.
 
+import time
 import threading
 
 import psycopg2
@@ -30,7 +31,8 @@ import psycopg2.extensions
 from psycopg2 import extras
 
 from testconfig import dsn
-from testutils import unittest, ConnectingTestCase, skip_before_postgres
+from testutils import unittest, ConnectingTestCase, skip_before_postgres, slow
+
 
 class CancelTests(ConnectingTestCase):
 
@@ -47,6 +49,7 @@ class CancelTests(ConnectingTestCase):
     def test_empty_cancel(self):
         self.conn.cancel()
 
+    @slow
     @skip_before_postgres(8, 2)
     def test_cancel(self):
         errors = []
@@ -71,6 +74,7 @@ class CancelTests(ConnectingTestCase):
             except Exception, e:
                 errors.append(e)
                 raise
+            del cur
 
         thread1 = threading.Thread(target=neverending, args=(self.conn, ))
         # wait a bit to make sure that the other thread is already in
@@ -83,13 +87,15 @@ class CancelTests(ConnectingTestCase):
 
         self.assertEqual(errors, [])
 
+    @slow
     @skip_before_postgres(8, 2)
     def test_async_cancel(self):
-        async_conn = psycopg2.connect(dsn, async=True)
+        async_conn = psycopg2.connect(dsn, async_=True)
         self.assertRaises(psycopg2.OperationalError, async_conn.cancel)
         extras.wait_select(async_conn)
         cur = async_conn.cursor()
-        cur.execute("select pg_sleep(10000)")
+        cur.execute("select pg_sleep(10)")
+        time.sleep(1)
         self.assertTrue(async_conn.isexecuting())
         async_conn.cancel()
         self.assertRaises(psycopg2.extensions.QueryCanceledError,
@@ -99,7 +105,7 @@ class CancelTests(ConnectingTestCase):
         self.assertEqual(cur.fetchall(), [(1, )])
 
     def test_async_connection_cancel(self):
-        async_conn = psycopg2.connect(dsn, async=True)
+        async_conn = psycopg2.connect(dsn, async_=True)
         async_conn.close()
         self.assertTrue(async_conn.closed)
 
