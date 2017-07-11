@@ -33,4 +33,10 @@ if dbuser is not None:
 if dbpass is not None:
     dsn += ' password=%s' % dbpass
 
+# Don't run replication tests if REPL_DSN is not set, default to normal DSN if
+# set to empty string.
+repl_dsn = os.environ.get('PSYCOPG2_TEST_REPL_DSN', None)
+if repl_dsn == '':
+    repl_dsn = dsn
 
+repl_slot = os.environ.get('PSYCOPG2_TEST_REPL_SLOT', 'psycopg2_test_slot')
