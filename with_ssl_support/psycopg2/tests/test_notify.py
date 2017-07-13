@@ -26,7 +26,7 @@ from testutils import unittest
 
 import psycopg2
 from psycopg2 import extensions
-from testutils import ConnectingTestCase, script_to_py3
+from testutils import ConnectingTestCase, script_to_py3, slow
 from testconfig import dsn
 
 import sys
@@ -67,11 +67,12 @@ curs.execute("NOTIFY " %(name)r %(payload)r)
 curs.close()
 conn.close()
 """ % {
-        'module': psycopg2.__name__,
-        'dsn': dsn, 'sec': sec, 'name': name, 'payload': payload})
+            'module': psycopg2.__name__,
+            'dsn': dsn, 'sec': sec, 'name': name, 'payload': payload})
 
         return Popen([sys.executable, '-c', script_to_py3(script)], stdout=PIPE)
 
+    @slow
     def test_notifies_received_on_poll(self):
         self.autocommit(self.conn)
         self.listen('foo')
@@ -79,7 +80,7 @@ conn.close()
         proc = self.notify('foo', 1)
 
         t0 = time.time()
-        ready = select.select([self.conn], [], [], 5)
+        select.select([self.conn], [], [], 5)
         t1 = time.time()
         self.assert_(0.99 < t1 - t0 < 4, t1 - t0)
 
@@ -90,6 +91,7 @@ conn.close()
         self.assertEqual(pid, self.conn.notifies[0][0])
         self.assertEqual('foo', self.conn.notifies[0][1])
 
+    @slow
     def test_many_notifies(self):
         self.autocommit(self.conn)
         for name in ['foo', 'bar', 'baz']:
@@ -107,8 +109,9 @@ conn.close()
         names = dict.fromkeys(['foo', 'bar', 'baz'])
         for (pid, name) in self.conn.notifies:
             self.assertEqual(pids[name], pid)
-            names.pop(name) # raise if name found twice
+            names.pop(name)     # raise if name found twice
 
+    @slow
     def test_notifies_received_on_execute(self):
         self.autocommit(self.conn)
         self.listen('foo')
@@ -119,6 +122,7 @@ conn.close()
         self.assertEqual(pid, self.conn.notifies[0][0])
         self.assertEqual('foo', self.conn.notifies[0][1])
 
+    @slow
     def test_notify_object(self):
         self.autocommit(self.conn)
         self.listen('foo')
@@ -128,6 +132,7 @@ conn.close()
         notify = self.conn.notifies[0]
         self.assert_(isinstance(notify, psycopg2.extensions.Notify))
 
+    @slow
     def test_notify_attributes(self):
         self.autocommit(self.conn)
         self.listen('foo')
@@ -140,6 +145,7 @@ conn.close()
         self.assertEqual('foo', notify.channel)
         self.assertEqual('', notify.payload)
 
+    @slow
     def test_notify_payload(self):
         if self.conn.server_version < 90000:
             return self.skipTest("server version %s doesn't support notify payload"
@@ -154,6 +160,29 @@ conn.close()
         self.assertEqual(pid, notify.pid)
         self.assertEqual('foo', notify.channel)
         self.assertEqual('Hello, world!', notify.payload)
+
+    @slow
+    def test_notify_deque(self):
+        from collections import deque
+        self.autocommit(self.conn)
+        self.conn.notifies = deque()
+        self.listen('foo')
+        self.notify('foo').communicate()
+        time.sleep(0.5)
+        self.conn.poll()
+        notify = self.conn.notifies.popleft()
+        self.assert_(isinstance(notify, psycopg2.extensions.Notify))
+        self.assertEqual(len(self.conn.notifies), 0)
+
+    @slow
+    def test_notify_noappend(self):
+        self.autocommit(self.conn)
+        self.conn.notifies = None
+        self.listen('foo')
+        self.notify('foo').communicate()
+        time.sleep(0.5)
+        self.conn.poll()
+        self.assertEqual(self.conn.notifies, None)
 
     def test_notify_init(self):
         n = psycopg2.extensions.Notify(10, 'foo')
@@ -192,9 +221,10 @@ conn.close()
         self.assertNotEqual(hash(Notify(10, 'foo', 'bar')),
             hash(Notify(10, 'foo')))
 
+
 def test_suite():
     return unittest.TestLoader().loadTestsFromName(__name__)
 
+
 if __name__ == "__main__":
     unittest.main()
-

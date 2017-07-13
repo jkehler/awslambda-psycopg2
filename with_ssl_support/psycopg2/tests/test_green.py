@@ -27,7 +27,8 @@ import psycopg2
 import psycopg2.extensions
 import psycopg2.extras
 
-from testutils import ConnectingTestCase
+from testutils import ConnectingTestCase, slow
+
 
 class ConnectionStub(object):
     """A `connection` wrapper allowing analysis of the `poll()` calls."""
@@ -42,6 +43,7 @@ class ConnectionStub(object):
         rv = self.conn.poll()
         self.polls.append(rv)
         return rv
+
 
 class GreenTestCase(ConnectingTestCase):
     def setUp(self):
@@ -59,6 +61,7 @@ class GreenTestCase(ConnectingTestCase):
             lambda conn: psycopg2.extras.wait_select(stub))
         return stub
 
+    @slow
     def test_flush_on_write(self):
         # a very large query requires a flush loop to be sent to the backend
         conn = self.conn
@@ -89,7 +92,7 @@ class GreenTestCase(ConnectingTestCase):
         curs.fetchone()
 
         # now try to do something that will fail in the callback
-        psycopg2.extensions.set_wait_callback(lambda conn: 1//0)
+        psycopg2.extensions.set_wait_callback(lambda conn: 1 // 0)
         self.assertRaises(ZeroDivisionError, curs.execute, "select 2")
 
         self.assert_(conn.closed)

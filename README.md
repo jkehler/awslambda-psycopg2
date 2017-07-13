@@ -33,3 +33,18 @@ After the above steps have been completed you will then have a build directory
 and the custom compiled psycopg2 library will be contained within it. Copy this
 directory into your AWS Lambda package and you will now be able to access
 PostgreSQL from within AWS Lambda using the psycopg2 library!
+
+#### Compiling with ssl support
+
+To compile with ssl support steps 3 and 4 above become.
+
+3. Go into the PostgreSQL source directory and execute the following commands:
+  - `./configure --prefix {path_to_postgresql_source} --without-readline --without-zlib --with-openssl`
+  - `make`
+  - `make install`
+4. Go into the psycopg2 source directory and edit the `setup.cfg` file with the following:
+  - `pg_config={path_to_postgresql_source/bin/pg_config}`
+  - `static_libpq=1`
+  - `libraries=ssl crypto`
+
+All other steps are identical.
