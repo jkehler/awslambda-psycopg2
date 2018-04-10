@@ -8,7 +8,9 @@ libpq library instead of the default dynamic link.
 
 ### How to use
 
-Just copy the psycopg2 directory into your AWS Lambda zip package.
+If you are using Lambda's Python 2.7 runtime, then copy psycopg2 directory into your AWS Lambda zip package and import it normally as a Python package.
+
+If you are using the Python 3.6 runtime, copy the psycopg2-3.6 directory into the zip package.
 
 ### Instructions on compiling this package from scratch
 
