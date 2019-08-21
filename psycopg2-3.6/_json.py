@@ -7,7 +7,7 @@ extensions importing register_json from extras.
 
 # psycopg/_json.py - Implementation of the JSON adaptation objects
 #
-# Copyright (C) 2012 Daniele Varrazzo  <daniele.varrazzo@gmail.com>
+# Copyright (C) 2012-2019 Daniele Varrazzo  <daniele.varrazzo@gmail.com>
 #
 # psycopg2 is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -27,20 +27,11 @@ extensions importing register_json from extras.
 # FITNESS FOR A PARTICULAR PURPOSE.  See the GNU Lesser General Public
 # License for more details.
 
-import sys
+import json
 
 from psycopg2._psycopg import ISQLQuote, QuotedString
 from psycopg2._psycopg import new_type, new_array_type, register_type
-
-
-# import the best json implementation available
-if sys.version_info[:2] >= (2, 6):
-    import json
-else:
-    try:
-        import simplejson as json
-    except ImportError:
-        json = None
+from psycopg2.compat import PY2
 
 
 # oids from PostgreSQL 9.2
@@ -58,21 +49,14 @@ class Json(object):
     :sql:`json` data type.
 
     `!Json` can be used to wrap any object supported by the provided *dumps*
-    function.  If none is provided, the standard :py:func:`json.dumps()` is
-    used (`!simplejson` for Python < 2.6;
-    `~psycopg2.extensions.ISQLQuote.getquoted()` will raise `!ImportError` if
-    the module is not available).
+    function. If none is provided, the standard :py:func:`json.dumps()` is
+    used.
 
     """
     def __init__(self, adapted, dumps=None):
         self.adapted = adapted
-
-        if dumps is not None:
-            self._dumps = dumps
-        elif json is not None:
-            self._dumps = json.dumps
-        else:
-            self._dumps = None
+        self._conn = None
+        self._dumps = dumps or json.dumps
 
     def __conform__(self, proto):
         if proto is ISQLQuote:
@@ -85,19 +69,19 @@ class Json(object):
         provided in the constructor. You can override this method to create a
         customized JSON wrapper.
         """
-        dumps = self._dumps
-        if dumps is not None:
-            return dumps(obj)
-        else:
-            raise ImportError(
-                "json module not available: "
-                "you should provide a dumps function")
+        return self._dumps(obj)
+
+    def prepare(self, conn):
+        self._conn = conn
 
     def getquoted(self):
         s = self.dumps(self.adapted)
-        return QuotedString(s).getquoted()
+        qs = QuotedString(s)
+        if self._conn is not None:
+            qs.prepare(self._conn)
+        return qs.getquoted()
 
-    if sys.version_info < (3,):
+    if PY2:
         def __str__(self):
             return self.getquoted()
     else:
@@ -174,10 +158,7 @@ def register_default_jsonb(conn_or_curs=None, globally=False, loads=None):
 def _create_json_typecasters(oid, array_oid, loads=None, name='JSON'):
     """Create typecasters for json data type."""
     if loads is None:
-        if json is None:
-            raise ImportError("no json module available")
-        else:
-            loads = json.loads
+        loads = json.loads
 
     def typecast_json(s, cur):
         if s is None:
@@ -204,7 +185,7 @@ def _get_json_oids(conn_or_curs, name='json'):
     conn_status = conn.status
 
     # column typarray not available before PG 8.3
-    typarray = conn.server_version >= 80300 and "typarray" or "NULL"
+    typarray = conn.info.server_version >= 80300 and "typarray" or "NULL"
 
     # get the oid for the hstore
     curs.execute(
@@ -213,7 +194,7 @@ def _get_json_oids(conn_or_curs, name='json'):
     r = curs.fetchone()
 
     # revert the status of the connection as before the command
-    if (conn_status != STATUS_IN_TRANSACTION and not conn.autocommit):
+    if conn_status != STATUS_IN_TRANSACTION and not conn.autocommit:
         conn.rollback()
 
     if not r:

@@ -8,11 +8,11 @@ This module holds all the extensions to the DBAPI-2.0 provided by psycopg.
 - `adapt()` -- exposes the PEP-246_ compatible adapting mechanism used
   by psycopg to adapt Python types to PostgreSQL ones
 
-.. _PEP-246: http://www.python.org/peps/pep-0246.html
+.. _PEP-246: https://www.python.org/dev/peps/pep-0246/
 """
 # psycopg/extensions.py - DBAPI-2.0 extensions specific to psycopg
 #
-# Copyright (C) 2003-2010 Federico Di Gregorio  <fog@debian.org>
+# Copyright (C) 2003-2019 Federico Di Gregorio  <fog@debian.org>
 #
 # psycopg2 is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -35,35 +35,32 @@ This module holds all the extensions to the DBAPI-2.0 provided by psycopg.
 import re as _re
 
 from psycopg2._psycopg import (                             # noqa
-    BINARYARRAY, BOOLEAN, BOOLEANARRAY, DATE, DATEARRAY, DATETIMEARRAY,
-    DECIMAL, DECIMALARRAY, FLOAT, FLOATARRAY, INTEGER, INTEGERARRAY,
-    INTERVAL, INTERVALARRAY, LONGINTEGER, LONGINTEGERARRAY, ROWIDARRAY,
-    STRINGARRAY, TIME, TIMEARRAY, UNICODE, UNICODEARRAY,
+    BINARYARRAY, BOOLEAN, BOOLEANARRAY, BYTES, BYTESARRAY, DATE, DATEARRAY,
+    DATETIMEARRAY, DECIMAL, DECIMALARRAY, FLOAT, FLOATARRAY, INTEGER,
+    INTEGERARRAY, INTERVAL, INTERVALARRAY, LONGINTEGER, LONGINTEGERARRAY,
+    ROWIDARRAY, STRINGARRAY, TIME, TIMEARRAY, UNICODE, UNICODEARRAY,
     AsIs, Binary, Boolean, Float, Int, QuotedString, )
 
 try:
     from psycopg2._psycopg import (                         # noqa
-        MXDATE, MXDATETIME, MXINTERVAL, MXTIME,
-        MXDATEARRAY, MXDATETIMEARRAY, MXINTERVALARRAY, MXTIMEARRAY,
+        MXDATE, MXDATETIME, MXDATETIMETZ, MXINTERVAL, MXTIME, MXDATEARRAY,
+        MXDATETIMEARRAY, MXDATETIMETZARRAY, MXINTERVALARRAY, MXTIMEARRAY,
         DateFromMx, TimeFromMx, TimestampFromMx, IntervalFromMx, )
 except ImportError:
     pass
 
-try:
-    from psycopg2._psycopg import (                         # noqa
-        PYDATE, PYDATETIME, PYINTERVAL, PYTIME,
-        PYDATEARRAY, PYDATETIMEARRAY, PYINTERVALARRAY, PYTIMEARRAY,
-        DateFromPy, TimeFromPy, TimestampFromPy, IntervalFromPy, )
-except ImportError:
-    pass
+from psycopg2._psycopg import (                         # noqa
+    PYDATE, PYDATETIME, PYDATETIMETZ, PYINTERVAL, PYTIME, PYDATEARRAY,
+    PYDATETIMEARRAY, PYDATETIMETZARRAY, PYINTERVALARRAY, PYTIMEARRAY,
+    DateFromPy, TimeFromPy, TimestampFromPy, IntervalFromPy, )
 
 from psycopg2._psycopg import (                             # noqa
     adapt, adapters, encodings, connection, cursor,
     lobject, Xid, libpq_version, parse_dsn, quote_ident,
     string_types, binary_types, new_type, new_array_type, register_type,
-    ISQLQuote, Notify, Diagnostics, Column,
+    ISQLQuote, Notify, Diagnostics, Column, ConnectionInfo,
     QueryCanceledError, TransactionRollbackError,
-    set_wait_callback, get_wait_callback, )
+    set_wait_callback, get_wait_callback, encrypt_password, )
 
 
 """Isolation level values."""
@@ -163,7 +160,7 @@ def make_dsn(dsn=None, **kwargs):
         kwargs['dbname'] = kwargs.pop('database')
 
     # Drop the None arguments
-    kwargs = dict((k, v) for (k, v) in kwargs.items() if v is not None)
+    kwargs = {k: v for (k, v) in kwargs.items() if v is not None}
 
     if dsn is not None:
         tmp = parse_dsn(dsn)

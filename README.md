@@ -23,7 +23,7 @@ library.
 1. Download the
   [PostgreSQL source code](https://ftp.postgresql.org/pub/source/v9.4.3/postgresql-9.4.3.tar.gz) and extract into a directory.
 2. Download the
-  [psycopg2 source code](http://initd.org/psycopg/tarballs/PSYCOPG-2-6/psycopg2-2.6.1.tar.gz) and extract into a directory.
+  [psycopg2 source code](http://initd.org/psycopg/tarballs/PSYCOPG-2-8/psycopg2-2.8.3.tar.gz) and extract into a directory.
 3. Go into the PostgreSQL source directory and execute the following commands:
   - `./configure --prefix {path_to_postgresql_source} --without-readline --without-zlib`
   - `make`
@@ -32,6 +32,23 @@ library.
   - `pg_config={path_to_postgresql_source/bin/pg_config}`
   - `static_libpq=1`
 5. Execute `python setup.py build` in the psycopg2 source directory.
+
+Create a t2.micro with AMI ID amzn-ami-hvm-2018.03.0.20190611-x86_64-gp2 (ami-035b3c7efe6d061d5)
+Then on the instance perform the following steps:
+```
+sudo yum install gcc python36 python36-devel
+wget https://ftp.postgresql.org/pub/source/v9.4.3/postgresql-9.4.3.tar.gz -O - | tar -xz
+wget http://initd.org/psycopg/tarballs/PSYCOPG-2-8/psycopg2-2.8.3.tar.gz -O - | tar -xzv
+
+cd postgresql-9.4.3
+./configure --prefix `pwd` --without-readline --without-zlib
+make install
+cd ..
+cd psycopg2-2.8.3/
+sed -e '/static_libpq/s/=.*/= 1/' -e "/pg_config/s@=.*@= $(readlink -f ../postgresql-9.4.3/bin/pg_config)@" -i setup.cfg
+python3 setup.py build
+```
+Commit the files in build/lib.linux-x86_64-3.6/psycopg2/ for python-3.6
 
 After the above steps have been completed you will then have a build directory
 and the custom compiled psycopg2 library will be contained within it. Copy this

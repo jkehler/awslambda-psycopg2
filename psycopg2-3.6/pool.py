@@ -4,7 +4,7 @@ This module implements thread-safe (and not) connection pools.
 """
 # psycopg/pool.py - pooling code for psycopg
 #
-# Copyright (C) 2003-2010 Federico Di Gregorio  <fog@debian.org>
+# Copyright (C) 2003-2019 Federico Di Gregorio  <fog@debian.org>
 #
 # psycopg2 is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -25,7 +25,7 @@ This module implements thread-safe (and not) connection pools.
 # License for more details.
 
 import psycopg2
-import psycopg2.extensions as _ext
+from psycopg2 import extensions as _ext
 
 
 class PoolError(psycopg2.Error):
@@ -95,17 +95,17 @@ class AbstractConnectionPool(object):
         """Put away a connection."""
         if self.closed:
             raise PoolError("connection pool is closed")
+
         if key is None:
             key = self._rused.get(id(conn))
-
-        if not key:
-            raise PoolError("trying to put unkeyed connection")
+            if key is None:
+                raise PoolError("trying to put unkeyed connection")
 
         if len(self._pool) < self.minconn and not close:
             # Return the connection into a consistent state before putting
             # it back into the pool
             if not conn.closed:
-                status = conn.get_transaction_status()
+                status = conn.info.transaction_status
                 if status == _ext.TRANSACTION_STATUS_UNKNOWN:
                     # server connection lost
                     conn.close()
@@ -138,7 +138,7 @@ class AbstractConnectionPool(object):
         for conn in self._pool + list(self._used.values()):
             try:
                 conn.close()
-            except:
+            except Exception:
                 pass
         self.closed = True
 
@@ -173,61 +173,6 @@ class ThreadedConnectionPool(AbstractConnectionPool):
         """Put away an unused connection."""
         self._lock.acquire()
         try:
-            self._putconn(conn, key, close)
-        finally:
-            self._lock.release()
-
-    def closeall(self):
-        """Close all connections (even the one currently in use.)"""
-        self._lock.acquire()
-        try:
-            self._closeall()
-        finally:
-            self._lock.release()
-
-
-class PersistentConnectionPool(AbstractConnectionPool):
-    """A pool that assigns persistent connections to different threads.
-
-    Note that this connection pool generates by itself the required keys
-    using the current thread id.  This means that until a thread puts away
-    a connection it will always get the same connection object by successive
-    `!getconn()` calls. This also means that a thread can't use more than one
-    single connection from the pool.
-    """
-
-    def __init__(self, minconn, maxconn, *args, **kwargs):
-        """Initialize the threading lock."""
-        import warnings
-        warnings.warn("deprecated: use ZPsycopgDA.pool implementation",
-            DeprecationWarning)
-
-        import threading
-        AbstractConnectionPool.__init__(
-            self, minconn, maxconn, *args, **kwargs)
-        self._lock = threading.Lock()
-
-        # we we'll need the thread module, to determine thread ids, so we
-        # import it here and copy it in an instance variable
-        import _thread as _thread  # work around for 2to3 bug - see ticket #348
-        self.__thread = _thread
-
-    def getconn(self):
-        """Generate thread id and return a connection."""
-        key = self.__thread.get_ident()
-        self._lock.acquire()
-        try:
-            return self._getconn(key)
-        finally:
-            self._lock.release()
-
-    def putconn(self, conn=None, close=False):
-        """Put away an unused connection."""
-        key = self.__thread.get_ident()
-        self._lock.acquire()
-        try:
-            if not conn:
-                conn = self._used[key]
             self._putconn(conn, key, close)
         finally:
             self._lock.release()

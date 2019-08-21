@@ -4,7 +4,7 @@
 
 # psycopg/_range.py - Implementation of the Range type and adaptation
 #
-# Copyright (C) 2012 Daniele Varrazzo  <daniele.varrazzo@gmail.com>
+# Copyright (C) 2012-2019 Daniele Varrazzo  <daniele.varrazzo@gmail.com>
 #
 # psycopg2 is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
@@ -29,6 +29,7 @@ import re
 from psycopg2._psycopg import ProgrammingError, InterfaceError
 from psycopg2.extensions import ISQLQuote, adapt, register_adapter
 from psycopg2.extensions import new_type, new_array_type, register_type
+from psycopg2.compat import string_types
 
 
 class Range(object):
@@ -60,6 +61,19 @@ class Range(object):
         else:
             return "%s(%r, %r, %r)" % (self.__class__.__name__,
                 self._lower, self._upper, self._bounds)
+
+    def __str__(self):
+        if self._bounds is None:
+            return 'empty'
+
+        items = [
+            self._bounds[0],
+            str(self._lower),
+            ', ',
+            str(self._upper),
+            self._bounds[1]
+        ]
+        return ''.join(items)
 
     @property
     def lower(self):
@@ -129,6 +143,10 @@ class Range(object):
     def __bool__(self):
         return self._bounds is not None
 
+    def __nonzero__(self):
+        # Python 2 compatibility
+        return type(self).__bool__(self)
+
     def __eq__(self, other):
         if not isinstance(other, Range):
             return False
@@ -181,14 +199,11 @@ class Range(object):
             return self.__gt__(other)
 
     def __getstate__(self):
-        return dict(
-            (slot, getattr(self, slot))
-            for slot in self.__slots__
-            if hasattr(self, slot)
-        )
+        return {slot: getattr(self, slot)
+            for slot in self.__slots__ if hasattr(self, slot)}
 
     def __setstate__(self, state):
-        for slot, value in list(state.items()):
+        for slot, value in state.items():
             setattr(self, slot, value)
 
 
@@ -299,7 +314,7 @@ class RangeCaster(object):
         # an implementation detail and is not documented. It is currently used
         # for the numeric ranges.
         self.adapter = None
-        if isinstance(pgrange, str):
+        if isinstance(pgrange, string_types):
             self.adapter = type(pgrange, (RangeAdapter,), {})
             self.adapter.name = pgrange
         else:
@@ -316,7 +331,7 @@ class RangeCaster(object):
 
         self.range = None
         try:
-            if isinstance(pyrange, str):
+            if isinstance(pyrange, string_types):
                 self.range = type(pyrange, (Range,), {})
             if issubclass(pyrange, Range) and pyrange is not Range:
                 self.range = pyrange
@@ -337,9 +352,9 @@ class RangeCaster(object):
         from psycopg2.extras import _solve_conn_curs
         conn, curs = _solve_conn_curs(conn_or_curs)
 
-        if conn.server_version < 90200:
+        if conn.info.server_version < 90200:
             raise ProgrammingError("range types not available in version %s"
-                % conn.server_version)
+                % conn.info.server_version)
 
         # Store the transaction status of the connection to revert it after use
         conn_status = conn.status
@@ -491,9 +506,9 @@ class NumberRangeAdapter(RangeAdapter):
         return ("'%s%s,%s%s'" % (
             r._bounds[0], lower, upper, r._bounds[1])).encode('ascii')
 
+
 # TODO: probably won't work with infs, nans and other tricky cases.
 register_adapter(NumericRange, NumberRangeAdapter)
-
 
 # Register globally typecasters and adapters for builtin range types.
 
