@@ -14,6 +14,8 @@ Just copy the psycopg2 directory into your AWS Lambda zip package.
 #### Python 3.6
 Just copy the psycopg2-3.6 directory into your AWS Lambda project and rename it to psycopg2 before creating your AWS Lambda zip package.
 
+This applies to Python 3.7 and 3.8 too with their respective builds. For example, if you are using it with virtualenv, delete psycopg2 from the venv/lib/python3.8/site-packages and place the psycopg2-3.8 in the same dir before renaming back to psycopg2. 
+
 ### Instructions on compiling this package from scratch
 
 Here was the process that was used to build this package. You will need to
