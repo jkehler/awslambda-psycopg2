@@ -1,0 +1,39 @@
+name: Secrets Scan
+on:
+  pull_request:
+    branches:
+      - master
+      - main
+
+jobs:
+  trufflehog:
+    runs-on: ubuntu-latest
+    steps:
+      # Need to checkout current repo first
+      - uses: actions/checkout@v3
+        name: Checkout current repo
+        with:
+          repository: ${{ github.repository }}
+      # Do the magic: checkout action repo
+      - uses: actions/checkout@v3
+        name: Checkout action repo
+        with:
+          repository: AskTia/devops
+          ref: main
+          token: ${{ secrets.TIA_GITHUB_PAT }}
+          path: .github/actions
+      #this checks out the trufflehog repo
+      - uses: ./.github/actions/trufflehog/lib
+        name: Run the trufflehog action
+        id: trufflehog
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          ignore-file: 'true'
+      #check back out
+      - uses: actions/checkout@v3
+        name: Re-check out actions repo
+        with:
+          repository: AskTia/devops
+          ref: main
+          token: ${{ secrets.TIA_GITHUB_PAT }}
+          path: .github/actions
